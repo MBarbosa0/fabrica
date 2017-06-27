@@ -2,16 +2,32 @@
 #include <stdlib.h>
 #include "func.h"
 
-//TORNO == 1, FRESA == 2, MANDRILL == 3, NADA == 0;
-int s_cilindrico[5] = {1, 2, 1, 3, 0};
-int s_conico[5] = {1, 3, 1, 0, 0};
-int s_esfericoAco[5] = {2, 3, 1, 0, 0};
-int s_esfericoTitan[5] = {2, 3, 1, 2, 1};
-
+				/* Sequencia das maquinas */
+int s_cilindrico[5] = {TORNO, FRESA, TORNO, MANDRIL, NONE};
+int s_conico[5] = {TORNO, MANDRIL, TORNO, NONE, NONE};
+int s_esfericoAco[5] = {FRESA, MANDRIL, TORNO, NONE, NONE};
+int s_esfericoTitan[5] = {FRESA, MANDRIL, TORNO, FRESA, TORNO};
+				/* Tempo nas maquinas */
 float ts_cilindrico[5] = {0.8, 0.5, 0.8, 1.2, 0};
 float ts_conico[5] = {1.8, 2.1, 1.8, 0, 0};
 float ts_esfeticoAco[5] = {0.5, 1.4, 1.0, 0, 0};
 float ts_esfericoTitan[5] = {0.6, 1.5, 1.6, 0.6, 1.6};
+
+void imprimeFila(Fila * l)
+{
+	Fila * p;
+	p = l;
+	if( p == NULL)
+		printf("Fila vazia !\n");
+	else
+	{
+		while(p != NULL)
+		{
+			printf("Rolamento: %s\n", p->peca->rolamento);
+			p = p->prox;
+		}
+	}
+}
 
 Peca * criaCilindro()
 {
@@ -80,19 +96,114 @@ Peca * criaEsfericoTita()
 	}
 	return novo;
 }
+
+Fila * criaFila()
+{
+	return NULL;
+}
+
+void insereFila(Fila ** l, Peca * p)
+{
+	Fila * atual, * novo, * anterior;
+	novo = (Fila*)malloc(sizeof(Fila));
+
+	atual = *l;
+	anterior = NULL;
+	novo->peca = p;
+	if(atual == NULL)
+	{
+		novo->prox = NULL;
+		*l = novo;
+	}
+	else
+	{
+		while(atual != NULL && novo->peca->prioridade > atual->peca->prioridade)
+		{
+			anterior = atual;
+			atual = atual->prox;
+		}
+		novo->prox = atual;
+		if(anterior == NULL)
+			*l = novo;
+		else
+			anterior->prox = novo;
+	}
+}
+int sizeFila(Fila * l)
+{
+	Fila * p;
+	p = l;
+	int tam=0;
+	while(p != NULL)
+	{
+		tam++;
+		p = p->prox;
+	}
+	return tam;
+}
+void criaFilasMaquinas(Fila * filasMaquinas[4])
+{
+	//Fila 0 e 1 são para o torno, 2 fresa, 3 mandril
+	int i;
+	for(i=0;i<4;i++)
+	{
+		filasMaquinas[i] = criaFila();
+	}
+}
+
+void distribuiFila(Fila ** filasMaquinas[4], Peca * p, int pos)
+{
+	//Esse 'pos' é a posição na sequencia de maquina que a peca está
+	int aux;
+	aux = p->sequencia[pos];
+	if(aux == TORNO)
+	{
+		if(sizeFila(filasMaquinas[0]) <= sizeFila(filasMaquinas[1]))
+			insereFila(filasMaquinas[0], p);
+		else
+			insereFila(filasMaquinas[1], p);
+	}
+	else
+		insereFila(filasMaquinas[aux], p);
+}
+
+int achaMaquina(Peca * p, int pos)
+{
+	return p->sequencia[pos];
+}
 int main()
 {
+	Fila * filasMaquinas[4];
+	criaFilasMaquinas(filasMaquinas);
+
+	/* Isso deve acontecer para cada peca criada*/
 	Peca * novo;
-	novo = criaEsfericoTita();
-	printf("Nome: %s - prioridade: %d - Chegada: %f\n", novo->rolamento, novo->prioridade, novo->chegada);
-	for(int i=0;i<5;i++)
+	novo = criaEsfericoTita();//Funcao que cria todas as pecas no tempo
+	
+	int aux;
+	aux = achaMaquina(novo, 0);
+	if(aux == TORNO)
 	{
-		printf("S: %d\n", novo->sequencia[i]);
+		if(sizeFila(filasMaquinas[0]) <= sizeFila(filasMaquinas[1]))
+			insereFila(&filasMaquinas[0], novo);
+		else
+			insereFila(&filasMaquinas[1], novo);
 	}
-	printf("=======================\n");
-	for(int i=0;i<5;i++)
+	else
+		insereFila(&filasMaquinas[aux], novo);
+
+	/*//*/
+
+	//imprimir todas as filas
+	for(int i=0;i<4;i++)
 	{
-		printf("Tempo: %f\n", novo->tempoMaquina[i]);
+		if(i == (TORNO-1) || i == TORNO)
+			printf("=== Fila Torno ===\n");
+		else if(i == FRESA)
+			printf("=== Fila Fresa ===\n");
+		else
+			printf("=== Fila Mandril ===\n");
+		imprimeFila(filasMaquinas[i]);
 	}
-	return 0;
+	
 }
