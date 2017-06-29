@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <time.h>
 #include "func.h"
 
 				/* Sequencia das maquinas */
@@ -41,7 +43,7 @@ Peca * criaCilindro()
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_cilindrico[i];
-		novo->tempoMaquina[i] = ts_cilindrico[i];
+		novo->tempoRolamento[i] = ts_cilindrico[i];
 	}
 	return novo;
 }
@@ -58,7 +60,7 @@ Peca * criaConico()
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_conico[i];
-		novo->tempoMaquina[i] = ts_conico[i];
+		novo->tempoRolamento[i] = ts_conico[i];
 	}
 	return novo;
 }
@@ -75,12 +77,12 @@ Peca * criaEsfericoAco()
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_esfericoAco[i];
-		novo->tempoMaquina[i] = ts_esfeticoAco[i];
+		novo->tempoRolamento[i] = ts_esfeticoAco[i];
 	}
 	return novo;
 }
 
-Peca * criaEsfericoTita()
+Peca * criaEsfericoTitan()
 {
 	Peca * novo;
 	int i;
@@ -92,7 +94,7 @@ Peca * criaEsfericoTita()
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_esfericoTitan[i];
-		novo->tempoMaquina[i] = ts_esfericoTitan[i];
+		novo->tempoRolamento[i] = ts_esfericoTitan[i];
 	}
 	return novo;
 }
@@ -151,59 +153,102 @@ void criaFilasMaquinas(Fila * filasMaquinas[4])
 	}
 }
 
-void distribuiFila(Fila ** filasMaquinas[4], Peca * p, int pos)
+float chegadaPedido(float param) {
+	float u=0;
+	do {
+	u = (float) (rand()%RAND_MAX) / RAND_MAX;
+	} while ((u==0) || (u==1));
+	return (float) (-param * log (u));
+}
+
+void distribuiMaquina(Fila * filasMaquinas[4], Peca * pecas[4], float tempos[4],int pos)
 {
-	//Esse 'pos' é a posição na sequencia de maquina que a peca está
+	/*Gerar tempos e encontrar o cara com menor tempo para ser colocado na fila*/
+	int posMenor,i;
+	float menor;
+	float oldtime;
+
+	for(int i=0;i<4;i++)
+	{
+		printf("Tempos: %f\n", tempos[i]);
+	}
+	menor = tempos[0];
+	posMenor = 0;
+	for(i=1;i<4;i++)
+	{
+		if(tempos[i] < menor)
+		{
+			menor = tempos[i];
+			posMenor = i;
+		}
+	}
+	/* Sistema para garantir que o novo tempo gerado nao seja menor que o anterior*/
+	oldtime = tempos[posMenor];
+	tempos[posMenor] = chegadaPedido(pecas[posMenor]->chegada);
+	while(tempos[posMenor] < oldtime)
+	{
+		tempos[posMenor] =  chegadaPedido(pecas[posMenor]->chegada);
+	}
+
+	
+	printf("\n");
+
+	//===============================================
+	/*Parte para colocar o cara com menor tempo na fila certa, pode virar funcao separada*/
 	int aux;
-	aux = p->sequencia[pos];
+	aux = pecas[posMenor]->sequencia[pos];
 	if(aux == TORNO)
 	{
 		if(sizeFila(filasMaquinas[0]) <= sizeFila(filasMaquinas[1]))
-			insereFila(filasMaquinas[0], p);
+			insereFila(&filasMaquinas[0], pecas[posMenor]);
 		else
-			insereFila(filasMaquinas[1], p);
+			insereFila(&filasMaquinas[1], pecas[posMenor]);
 	}
 	else
-		insereFila(filasMaquinas[aux], p);
+		insereFila(&filasMaquinas[aux], pecas[posMenor]);
 }
 
-int achaMaquina(Peca * p, int pos)
-{
-	return p->sequencia[pos];
-}
 int main()
 {
+	int tempoDeOperacao,i;
+	printf("Quanto é o tempo maximo de operação ?\n");
+	scanf("%d", &tempoDeOperacao);
+
 	Fila * filasMaquinas[4];
 	criaFilasMaquinas(filasMaquinas);
 
-	/* Isso deve acontecer para cada peca criada*/
-	Peca * novo;
-	novo = criaEsfericoTita();//Funcao que cria todas as pecas no tempo
-	
-	int aux;
-	aux = achaMaquina(novo, 0);
-	if(aux == TORNO)
-	{
-		if(sizeFila(filasMaquinas[0]) <= sizeFila(filasMaquinas[1]))
-			insereFila(&filasMaquinas[0], novo);
-		else
-			insereFila(&filasMaquinas[1], novo);
-	}
-	else
-		insereFila(&filasMaquinas[aux], novo);
+	Peca * pecas[4];
 
-	/*//*/
+	pecas[0] = criaCilindro();
+	pecas[1] = criaConico();
+	pecas[2] = criaEsfericoAco();
+	pecas[3] = criaEsfericoTitan();
 
-	//imprimir todas as filas
-	for(int i=0;i<4;i++)
+	float tempos[4];
+	for(i=0;i<4;i++)
 	{
-		if(i == (TORNO-1) || i == TORNO)
-			printf("=== Fila Torno ===\n");
-		else if(i == FRESA)
-			printf("=== Fila Fresa ===\n");
-		else
-			printf("=== Fila Mandril ===\n");
-		imprimeFila(filasMaquinas[i]);
+		tempos[i] = chegadaPedido(pecas[i]->chegada);
 	}
+
+		while(tempoDeOperacao)
+		{
+			distribuiMaquina(filasMaquinas, pecas, tempos,0);
+			tempoDeOperacao--;
+		}
+
+		
+
+		//imprimir todas as filas
+		for(int i=0;i<4;i++)
+		{
+			if(i == (TORNO-1) || i == TORNO)
+				printf("=== Fila Torno ===\n");
+			else if(i == FRESA)
+				printf("=== Fila Fresa ===\n");
+			else
+				printf("=== Fila Mandril ===\n");
+			imprimeFila(filasMaquinas[i]);
+		}
+
 	
 }
