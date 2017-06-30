@@ -1,7 +1,7 @@
 #ifndef _func_h
 #define _func_h
 
-//Constantes
+/*Constantes*/
 #define TORNO 1
 #define FRESA 2
 #define MANDRIL 3
@@ -14,6 +14,7 @@ typedef struct peca
 	float chegada;
 	int sequencia[5];
 	float tempoRolamento[5];
+	float tempoTotal;
 
 }Peca;
 

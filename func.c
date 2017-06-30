@@ -40,6 +40,7 @@ Peca * criaCilindro()
 	novo->rolamento = "Cilíndrico";
 	novo->prioridade = 1;
 	novo->chegada = 21.5;
+	novo->tempoTotal = 0;
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_cilindrico[i];
@@ -57,6 +58,7 @@ Peca * criaConico()
 	novo->rolamento = "Cônico";
 	novo->prioridade = 2;
 	novo->chegada = 19.1;
+	novo->tempoTotal = 0;
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_conico[i];
@@ -74,6 +76,7 @@ Peca * criaEsfericoAco()
 	novo->rolamento = "Esférico Aço";
 	novo->prioridade = 3;
 	novo->chegada = 8.0;
+	novo->tempoTotal = 0;
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_esfericoAco[i];
@@ -91,6 +94,7 @@ Peca * criaEsfericoTitan()
 	novo->rolamento = "Esférico Titânio";
 	novo->prioridade = 3;
 	novo->chegada = 8.0;
+	novo->tempoTotal = 0;
 	for(i=0;i<5;i++)
 	{
 		novo->sequencia[i] = s_esfericoTitan[i];
@@ -143,6 +147,15 @@ int sizeFila(Fila * l)
 	}
 	return tam;
 }
+
+float chegadaPedido(float param) {
+	float u=0;
+	do {
+	u = (float) (rand()%RAND_MAX) / RAND_MAX;
+	} while ((u==0) || (u==1));
+	return (float) (-param * log (u));
+}
+
 void criaFilasMaquinas(Fila * filasMaquinas[4])
 {
 	//Fila 0 e 1 são para o torno, 2 fresa, 3 mandril
@@ -153,48 +166,8 @@ void criaFilasMaquinas(Fila * filasMaquinas[4])
 	}
 }
 
-float chegadaPedido(float param) {
-	float u=0;
-	do {
-	u = (float) (rand()%RAND_MAX) / RAND_MAX;
-	} while ((u==0) || (u==1));
-	return (float) (-param * log (u));
-}
-
-void distribuiMaquina(Fila * filasMaquinas[4], Peca * pecas[4], float tempos[4],int pos)
+void distribuiMaquina(Fila * filasMaquinas[4], Peca * pecas[4], int posMenor, int pos)
 {
-	/*Gerar tempos e encontrar o cara com menor tempo para ser colocado na fila*/
-	int posMenor,i;
-	float menor;
-	float oldtime;
-
-	for(int i=0;i<4;i++)
-	{
-		printf("Tempos: %f\n", tempos[i]);
-	}
-	menor = tempos[0];
-	posMenor = 0;
-	for(i=1;i<4;i++)
-	{
-		if(tempos[i] < menor)
-		{
-			menor = tempos[i];
-			posMenor = i;
-		}
-	}
-	/* Sistema para garantir que o novo tempo gerado nao seja menor que o anterior*/
-	oldtime = tempos[posMenor];
-	tempos[posMenor] = chegadaPedido(pecas[posMenor]->chegada);
-	while(tempos[posMenor] < oldtime)
-	{
-		tempos[posMenor] =  chegadaPedido(pecas[posMenor]->chegada);
-	}
-
-	
-	printf("\n");
-
-	//===============================================
-	/*Parte para colocar o cara com menor tempo na fila certa, pode virar funcao separada*/
 	int aux;
 	aux = pecas[posMenor]->sequencia[pos];
 	if(aux == TORNO)
@@ -208,11 +181,57 @@ void distribuiMaquina(Fila * filasMaquinas[4], Peca * pecas[4], float tempos[4],
 		insereFila(&filasMaquinas[aux], pecas[posMenor]);
 }
 
+void manipulaTempo(Fila * filasMaquinas[4], Peca * pecas[4], float tempos[4])
+{
+	/*Gerar tempos e encontrar o cara com menor tempo para ser colocado na fila*/
+	int posMenor,i;
+	float menor;
+	float oldtime;
+
+	/*Vai sair na versao final*/
+	for(int i=0;i<4;i++)
+	{
+		printf("Tempos: %f\n", tempos[i]);
+	}
+	/*//*/
+
+	menor = tempos[0];
+	posMenor = 0;
+	for(i=1;i<4;i++)
+	{
+		if(tempos[i] < menor)
+		{
+			menor = tempos[i];
+			posMenor = i;
+		}
+	}
+
+	/* Sistema para garantir que o novo tempo gerado nao seja menor que o anterior*/
+	oldtime = tempos[posMenor];
+	tempos[posMenor] = chegadaPedido(pecas[posMenor]->chegada);
+	while(tempos[posMenor] < oldtime)
+	{
+		tempos[posMenor] =  chegadaPedido(pecas[posMenor]->chegada);
+	}
+
+	
+	printf("\n");
+
+	distribuiMaquina(filasMaquinas, pecas, posMenor, 0 );
+	
+}
+
+float tempoMaquina(float ts_estadia[5], int pos) 
+{
+    return 2.0 * ts_estadia[pos] * rand() / (RAND_MAX + 1.0); 
+}
+
 int main()
 {
-	int tempoDeOperacao,i;
+	int i;
+	float menor,tempoDeOperacao;
 	printf("Quanto é o tempo maximo de operação ?\n");
-	scanf("%d", &tempoDeOperacao);
+	scanf("%f", &tempoDeOperacao);
 
 	Fila * filasMaquinas[4];
 	criaFilasMaquinas(filasMaquinas);
@@ -230,15 +249,30 @@ int main()
 		tempos[i] = chegadaPedido(pecas[i]->chegada);
 	}
 
-		while(tempoDeOperacao)
+		while(tempoDeOperacao > 0)
 		{
-			distribuiMaquina(filasMaquinas, pecas, tempos,0);
-			tempoDeOperacao--;
+			printf("TDO: %f\n", tempoDeOperacao);
+			manipulaTempo(filasMaquinas, pecas, tempos);
+			menor = tempos[0];
+			for(i=1;i<4;i++)
+			{
+				if(tempos[i] < menor)
+					menor = tempos[i];
+			}
+			/*Entra na maquina e fica esperando*/
+			/*Se tiver uma proxima maquina para entrar*/
+				/*A peca vai ser copiada para a fila dessa maquina*/
+				/*Ela vai ser retidrada da fila antiga*/
+			/*Se nao*/
+				/*A peca vai ser contada junto com seu tempo medio*/
+				/*Retirada de todo processo*/
+
+			tempoDeOperacao -= menor;
 		}
 
 		
 
-		//imprimir todas as filas
+		//Vai sair na versao final
 		for(int i=0;i<4;i++)
 		{
 			if(i == (TORNO-1) || i == TORNO)
