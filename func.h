@@ -14,6 +14,7 @@ typedef struct peca
 	float chegada;
 	int sequencia[5];
 	float tempoRolamento[5];
+	int maquinaAtual;
 	float tempoTotal;
 
 }Peca;
